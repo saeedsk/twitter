@@ -7,7 +7,7 @@ library(bit64)
 library(stringr)
 library("RTextTools") #Loads many packages useful for text mining
 
-printf <- function(...) invisible(print(sprintf(...)))
+printf <- function(...) cat(sprintf(...))
 
 load_dataset <- function() {
 #  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
@@ -40,7 +40,7 @@ find_tweet_frequency <- function(tweets) {
   tweets
 }
 
-filter_dataset_by_keyword <- function(tweets, keyword)
+filter_dataset_by_keyword <- function( keyword, tweets)
 {
   # Replace space with ".*" to build a regex expression that will search for all keywords
   keyword.regex <- str_replace_all(keyword," ",".*")
@@ -49,31 +49,23 @@ filter_dataset_by_keyword <- function(tweets, keyword)
 }
 
 
-test <- function(test.keyword)
+test <- function(tweets, test.keyword)
 {
-  printf("Current keyword: %s\n", test.keyword)
+  printf("Current keyword: %s", test.keyword)
 }
 
 generate_all_sub_datasets <- function(tweets, keywords)
 {
-  apply(keywords$keyword , 1, test)
-  # Replace space with ".*" to build a regex expression that will search for all keywords
-  keyword.regex <- str_replace_all(keyword," ",".*")
-  search.result <- with(tweets , str_detect(tweets$content, keyword.regex))
-  tweets[search.result,drop=TRUE]
+  sapply(X = keywords$keyword , FUN = filter_dataset_by_keyword, tweets = tweets)
 }
-
 
 tweets <- load_dataset() 
 #View(tweets)
 #show_histogram(tweets)
 
 keywords <- load_keywords()
-View(keywords)
-dim(keywords)
+#View(keywords)
+#dim(keywords)
 
 generate_all_sub_datasets(tweets, keywords)
 
-
-b <- filter_dataset_by_keyword(tweets,keywords$keyword[1])
-View(b)
