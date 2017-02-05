@@ -72,30 +72,37 @@ test <- function(tweets, test.keyword)
   printf("Current keyword: %s", test.keyword)
 }
 
-#  sapply(X = keywords$keyword , FUN = filter_dataset_by_keyword, tweets = tweets)
+#sapply(X = keywords$keyword , FUN = filter_dataset_by_keyword, tweets = tweets)
 
+printf("Loading dataset, it might take a while ...\n")
 tweets <- load_dataset() 
-#View(tweets)
-#show_histogram(tweets)
+printf("Dataset sucessfully loaded.\n")
 
+printf("Loading keywords ...\n")
 keywords <- load_keywords()
-dim(keywords)
 keywords
 
+printf("Filtering the tweets dataset based on the provided keywords...\n")
 segmented.tweets.list = list()
 for(i in 1:length(keywords$keyword)){
-  segmented.tweets.list[[i]] = filter_dataset_by_keyword( tweets, keywords$keyword[i] )
+  printf("Preparing dataset %d base on '%s' keyword\n",i , keywords$keyword[i])
+  segmented.tweets.list[[i]] <- filter_dataset_by_keyword( tweets, keywords$keyword[i] )
 }
 
 histogram.list = list()
 for(i in 1:length(keywords$keyword)){
   printf("Generating Histogram %d \n",i)
   if ( nrow(segmented.tweets.list[[i]] ) > 0)
+  {
      histogram.list[[i]] <- prepare_histogram(segmented.tweets.list[[i]], keywords$keyword[i])
-
-  printf("Saving Histogram Image %d \n",i)
-  histogram.filename = paste("plots\\histogram-",i,".png")
-  if (length(histogram.list[[i]]) > 0)
-    ggsave(histogram.list[[i]], file=histogram.filename, width=16, height=9);
+     printf("Saving Histogram Image %d \n",i)
+     histogram.filename = paste("plots\\histogram-",i,".png")
+     if (length(histogram.list[[i]]) > 0)
+       ggsave(histogram.list[[i]], file=histogram.filename, width=16, height=9);
+  }
+  else
+  {
+    printf("Histogram %d is empty\n",i)
+  }
 }
 
