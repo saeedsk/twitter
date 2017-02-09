@@ -23,7 +23,7 @@ printf <- function(...) cat(sprintf(...))
 #----------------------------------------------------------------
 load_dataset <- function() {
   #  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
-  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=480000)
+  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
   tweets <- cbind(timestamp=as.POSIXct(paste (tweets$tweet_time, tweets$tweet_date, sep = " ") , format="%H:%M:%S %Y-%m-%d"), tweets)
   tweets <- cbind(date=as.POSIXct(tweets$tweet_date, format="%Y-%m-%d"), tweets)
   tweets$tweet_time <- NULL
@@ -132,12 +132,12 @@ find_frequent_terms <- function( tweets.corpus, lowfreq )
 {
   tdm <- TermDocumentMatrix(tweets.corpus, control = list(wordLengths = c(3,Inf)))
   
-  freq.term <- findFreqTerms(tdm, lowfreq = lowfreq)
+  #freq.term <- findFreqTerms(tdm, lowfreq = lowfreq)
   term.freq <- rowSums(as.matrix(tdm)) 
   term.freq <- subset(term.freq, term.freq >= lowfreq)
   df <- data.frame(term = names(term.freq), freq = term.freq)
   base <- ggplot(df, aes(x = term, y = freq)) + geom_bar(stat = "identity") + 
-    xlab("Terms") + 
+    xlab("Most Frequent Terms") + 
     ylab("Count") + 
     coord_flip()
   base
@@ -165,31 +165,45 @@ tweets <- remove_numbers(tweets)
 #------------------ NLP -----------------------
 #------------- Creating Corpus-----------------
 
-tweets.corpus <- as.DistributedCorpus( VCorpus( VectorSource( tweets$content ) ) )
-#tweets.corpus <- Corpus(VectorSource(tweets$content))
+# create a subset of tweets, since nlp engine handles datasets larger than 300K rows very slowly
+tweets.sample <- tweets[sample(nrow(tweets), 10000), ]
+
+#tweets.corpus <- as.DistributedCorpus( VCorpus( VectorSource( tweets.sample$content ) ) )
+tweets.corpus <- Corpus(VectorSource(tweets.sample$content))
+
 # convert to lowercase
 tweets.corpus <- tm_map(tweets.corpus, content_transformer(tolower) )
+
 # remove punctuation
 tweets.corpus <- tm_map(tweets.corpus, content_transformer(removePunctuation) )
+
 # remove numbers
 tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeNumbers) )
+
 # add three extra stop words: 'via', ...
-tweets.stop.words <- c(stopwords("english"),"via","apear","will","per","get")
+tweets.stop.words <- c(stopwords("english"),"via","apear","will",
+                       "per","get","says","just","now","new","news","dont","one")
+
 #remove stopwords from corpus
-tweets.corpus <- tm_map(tweets.corpus, removeWords, tweets.stop.words)
+tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeWords), tweets.stop.words)
 
 # stem words
 #tweets.corpus <- tm_map(tweets.corpus, stemDocument)
-tweets.language <- tm_map(tweets.corpus, textcat)
+
+# detect tweet language
+#tweets.language <- tm_map(tweets.corpus, textcat)
 
 #---------- Finding Frequent Terms ------------
 frequent.terms <- find_frequent_terms( tweets.corpus, lowfreq = 300 )
+
 printf("Saving Frequent Terms Diagram ... \n")
+
 frequent.terms.filename = "plots\\frequent-terms.png"
+
 if (length(frequent.terms) > 0)
   ggsave(frequent.terms, file=frequent.terms.filename, width=16, height=9);
+
 frequent.terms  
-#inspect(tdm[1:100, 1:10])
 
 
 
