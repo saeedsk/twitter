@@ -19,7 +19,7 @@ printf <- function(...) cat(sprintf(...))
 #----------------------------------------------------------------
 load_dataset <- function() {
 #  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
-  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=480)
+  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
   tweets <- cbind(timestamp=as.POSIXct(paste (tweets$tweet_time, tweets$tweet_date, sep = " ") , format="%H:%M:%S %Y-%m-%d"), tweets)
   tweets <- cbind(date=as.POSIXct(tweets$tweet_date, format="%Y-%m-%d"), tweets)
   tweets$tweet_time <- NULL
@@ -109,7 +109,35 @@ filter_dataset_by_keyword <- function( tweets, keyword )
   search.result <- with(tweets , str_detect(tweets$content, keyword.regex))
   tweets[search.result,drop=TRUE]
 }
+
 #----------------------------------------------------------------
+find_keyword_frequencies <- function( tweets, keywords )
+{
+  keywords.frequncy = list()
+  for(i in 1:length(keywords$keyword)){
+    keyword.regex <- str_replace_all(tolower(keywords$keyword[i])," ",".*")
+    search.result <- with(tweets , str_detect(tolower(tweets$content), keyword.regex))
+    keywords.frequncy[[i]] <- c( keyword = keywords$keyword[i], count = sum( unlist(search.result) ) )
+    printf("Counting frequency of keyword:'%s'   \t %s\n", keywords$keyword[i], sum(unlist(search.result)))
+  }
+  keywords.frequncy
+}
+
+#----------------------------------------------------------------
+find_frequent_terms <- function( tweets.corpus, lowfreq )
+{
+  tdm <- TermDocumentMatrix(tweets.corpus, control = list(wordLengths = c(3,Inf)))
+  
+  freq.term <- findFreqTerms(tdm, lowfreq = lowfreq)
+  term.freq <- rowSums(as.matrix(tdm)) 
+  term.freq <- subset(term.freq, term.freq >= lowfreq)
+  df <- data.frame(term = names(term.freq), freq = term.freq)
+  base <- ggplot(df, aes(x = term, y = freq)) + geom_bar(stat = "identity") + 
+    xlab("Terms") + 
+    ylab("Count") + 
+    coord_flip()
+  base
+}
 #----------------------------------------------------------------
 #----------------------------------------------------------------
 #----------------------------------------------------------------
@@ -128,35 +156,60 @@ printf("Dataset sucessfully loaded.\n")
 
 tweets <- remove_urls(tweets)
 tweets <- remove_usernames(tweets)
-tweets <- remove_hash_tags(tweets)
+tweets <- remove_hash_tag_sign(tweets)
 tweets <- remove_numbers(tweets)
+#------------------ NLP -----------------------
 #------------- Creating Corpus-----------------
 tweets.corpus <- Corpus(VectorSource(tweets$content))
 # convert to lowercase
-tweets.corpus <- tm_map(tweets.corpus, tolower)
+tweets.corpus <- tm_map(tweets.corpus, content_transformer(tolower))
 # remove punctuation
 tweets.corpus <- tm_map(tweets.corpus, removePunctuation)
 # remove numbers
 tweets.corpus <- tm_map(tweets.corpus, removeNumbers)
+# add three extra stop words: 'via', ...
+tweets.stop.words <- c(stopwords("english"),"via","apear","will","per","get")
+#remove stopwords from corpus
+tweets.corpus <- tm_map(tweets.corpus, removeWords, tweets.stop.words)
+
 # stem words
-tweets.corpus <- tm_map(tweets.corpus, stemDocument)
+#tweets.corpus <- tm_map(tweets.corpus, stemDocument)
+tweets.language <- tm_map(tweets.corpus, textcat)
+
+#---------- Finding Frequent Terms ------------
+frequent.terms <- find_frequent_terms( tweets.corpus, lowfreq = 300 )
+printf("Saving Frequent Terms Diagram ... \n")
+frequent.terms.filename = "plots\\frequent-terms.png"
+if (length(frequent.terms) > 0)
+  ggsave(frequent.terms, file=frequent.terms.filename, width=16, height=9);
+frequent.terms  
+#inspect(tdm[1:100, 1:10])
 
 
 
 
+#keyword.Cases <- tm_map(tweets.corpus)
+
+View(tweets.language)
 #----------- Langugae Detection ---------------
 tweets <- detect_tweets_language(tweets)
 View(tweets)
+
+#--------------- Load Keywords ----------------
+printf("Loading keywords ...\n")
+keywords <- load_keywords()
+keywords
+
 #------- Frequent Words and Associations ------
+keywords.frequncy = list()
+keywords.frequncy <- find_keyword_frequencies( tweets, keywords )
 
-
+keywords.frequncy
+#View(keywords.frequncy)
 #--------------- Word Cloud -------------------
 
 #--------------- Clustering -------------------
 
-printf("Loading keywords ...\n")
-keywords <- load_keywords()
-keywords
 
 printf("Filtering the tweets dataset based on the provided keywords...\n")
 segmented.tweets.list = list()
