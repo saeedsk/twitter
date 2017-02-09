@@ -23,7 +23,7 @@ printf <- function(...) cat(sprintf(...))
 #----------------------------------------------------------------
 load_dataset <- function() {
   #  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
-  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
+  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=480)
   tweets <- cbind(timestamp=as.POSIXct(paste (tweets$tweet_time, tweets$tweet_date, sep = " ") , format="%H:%M:%S %Y-%m-%d"), tweets)
   tweets <- cbind(date=as.POSIXct(tweets$tweet_date, format="%Y-%m-%d"), tweets)
   tweets$tweet_time <- NULL
@@ -182,7 +182,8 @@ tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeNumbers) )
 
 # add three extra stop words: 'via', ...
 tweets.stop.words <- c(stopwords("english"),"via","apear","will",
-                       "per","get","says","just","now","new","news","dont","one")
+                       "per","get","says","just","now","new","news",
+                       "dont","one","like","https")
 
 #remove stopwords from corpus
 tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeWords), tweets.stop.words)
@@ -194,7 +195,7 @@ tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeWords), tweets.
 #tweets.language <- tm_map(tweets.corpus, textcat)
 
 #---------- Finding Frequent Terms ------------
-frequent.terms <- find_frequent_terms( tweets.corpus, lowfreq = 300 )
+frequent.terms <- find_frequent_terms( tweets.corpus, lowfreq = 200 )
 
 printf("Saving Frequent Terms Diagram ... \n")
 
@@ -247,7 +248,7 @@ for(i in 1:length(keywords$keyword)){
   {
     histogram.list[[i]] <- prepare_histogram(segmented.tweets.list[[i]], keywords$keyword[i])
     printf("Saving Histogram Image %d \n",i)
-    histogram.filename = paste("plots\\histogram-",i,".png")
+    histogram.filename = paste("plots\\histogram-",i,".png",sep = "")
     if (length(histogram.list[[i]]) > 0)
       ggsave(histogram.list[[i]], file=histogram.filename, width=16, height=9);
   }
