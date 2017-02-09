@@ -1,9 +1,12 @@
 
-packages <- c("ggplot2", "lubridate", "RTextTools", "bit64", "stringr", "date", "scales", "textcat", "NLP", "SnowballC")
+packages <- c("ggplot2", "lubridate", "RTextTools", "bit64", "stringr", 
+              "date", "scales", "textcat", "NLP", "SnowballC", "textcat",
+              "data.table", "tm.plugin.dc")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages()))) 
 }
 
+library(data.table)
 library(textcat)
 library(lubridate)
 library(ggplot2)
@@ -12,14 +15,15 @@ library(stringr)
 library(date)
 library(scales)
 library(tm)
+library(tm.plugin.dc)
 library(SnowballC)
 library("RTextTools") #Loads many packages useful for text mining
 #----------------------------------------------------------------
 printf <- function(...) cat(sprintf(...))
 #----------------------------------------------------------------
 load_dataset <- function() {
-#  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
-  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
+  #  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=4800000)
+  tweets <- data.table::fread("tweets.csv", na.strings="NA", colClasses=NULL, nrows=480000)
   tweets <- cbind(timestamp=as.POSIXct(paste (tweets$tweet_time, tweets$tweet_date, sep = " ") , format="%H:%M:%S %Y-%m-%d"), tweets)
   tweets <- cbind(date=as.POSIXct(tweets$tweet_date, format="%Y-%m-%d"), tweets)
   tweets$tweet_time <- NULL
@@ -94,7 +98,7 @@ prepare_histogram <- function(tweets, keyword) {
 }
 #----------------------------------------------------------------
 find_tweet_frequency <- function(tweets) {
-
+  
   tweets <- cbind(as.POSIXct(paste (tweets$tweet_time, tweets$tweet_date, sep = " ") , format="%H:%M:%S %Y-%m-%d"), tweets)
   tweets <- cbind(as.POSIXct(tweets$tweet_date, format="%Y-%m-%d"), tweets)
   tweets$tweet_time <- NULL
@@ -160,13 +164,15 @@ tweets <- remove_hash_tag_sign(tweets)
 tweets <- remove_numbers(tweets)
 #------------------ NLP -----------------------
 #------------- Creating Corpus-----------------
-tweets.corpus <- Corpus(VectorSource(tweets$content))
+
+tweets.corpus <- as.DistributedCorpus( VCorpus( VectorSource( tweets$content ) ) )
+#tweets.corpus <- Corpus(VectorSource(tweets$content))
 # convert to lowercase
-tweets.corpus <- tm_map(tweets.corpus, content_transformer(tolower))
+tweets.corpus <- tm_map(tweets.corpus, content_transformer(tolower) )
 # remove punctuation
-tweets.corpus <- tm_map(tweets.corpus, removePunctuation)
+tweets.corpus <- tm_map(tweets.corpus, content_transformer(removePunctuation) )
 # remove numbers
-tweets.corpus <- tm_map(tweets.corpus, removeNumbers)
+tweets.corpus <- tm_map(tweets.corpus, content_transformer(removeNumbers) )
 # add three extra stop words: 'via', ...
 tweets.stop.words <- c(stopwords("english"),"via","apear","will","per","get")
 #remove stopwords from corpus
@@ -225,11 +231,11 @@ for(i in 1:length(keywords$keyword)){
   printf("Generating Histogram %d \n",i)
   if ( nrow(segmented.tweets.list[[i]] ) > 0)
   {
-     histogram.list[[i]] <- prepare_histogram(segmented.tweets.list[[i]], keywords$keyword[i])
-     printf("Saving Histogram Image %d \n",i)
-     histogram.filename = paste("plots\\histogram-",i,".png")
-     if (length(histogram.list[[i]]) > 0)
-       ggsave(histogram.list[[i]], file=histogram.filename, width=16, height=9);
+    histogram.list[[i]] <- prepare_histogram(segmented.tweets.list[[i]], keywords$keyword[i])
+    printf("Saving Histogram Image %d \n",i)
+    histogram.filename = paste("plots\\histogram-",i,".png")
+    if (length(histogram.list[[i]]) > 0)
+      ggsave(histogram.list[[i]], file=histogram.filename, width=16, height=9);
   }
   else
   {
