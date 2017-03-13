@@ -162,6 +162,8 @@ tweets <- remove_urls(tweets)
 tweets <- remove_usernames(tweets)
 tweets <- remove_hash_tag_sign(tweets)
 tweets <- remove_numbers(tweets)
+tweets <- tweets[tweets$content != NULL,]
+
 #------------------ NLP -----------------------
 #------------- Creating Corpus-----------------
 
